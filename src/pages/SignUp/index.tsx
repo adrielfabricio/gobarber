@@ -6,11 +6,15 @@ import {
 	View,
 	ScrollView,
 	TextInput,
+	Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useNavigation } from '@react-navigation/native';
+import * as Yup from 'yup';
 import { Form } from '@unform/mobile';
 import { FormHandles } from '@unform/core';
+
+import getValidationErrors from '../../utils/getValidationErrors';
 
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -24,14 +28,50 @@ import {
 	BackToSignInButtonText,
 } from './styles';
 
+interface SignUpFormData {
+	name: string;
+	email: string;
+	password: string;
+}
+
 const SignIn: React.FC = () => {
 	const navigation = useNavigation();
 	const formRef = useRef<FormHandles>(null);
 	const emailInputRef = useRef<TextInput>(null);
-	const passwordInputRef = useRef<TextInput>(null);
+	const passInputRef = useRef<TextInput>(null);
 
-	const handleSignUp = useCallback((data: object) => {
-		console.log(data);
+	const handleSignUp = useCallback(async (data: SignUpFormData) => {
+		try {
+			formRef.current?.setErrors({});
+
+			const schema = Yup.object().shape({
+				name: Yup.string().required('Nome obrigatório'),
+				email: Yup.string()
+					.required('Email obrigatório')
+					.email('Digite um e-mail válido'),
+				password: Yup.string().required().min(6, 'No minimo 6 digitos'),
+			});
+
+			await schema.validate(data, {
+				abortEarly: false,
+			});
+
+			Alert.alert('Cadastro concluído', 'Seu cadastro foi efetuado com sucesso!');
+		} catch (err) {
+			if (err instanceof Yup.ValidationError) {
+				const errors = getValidationErrors(err);
+				console.log(errors);
+
+				formRef.current?.setErrors(errors);
+
+				return;
+			}
+
+			Alert.alert(
+				'Erro no cadastro',
+				'Ocorreu um erro ao cadastrar, tente novamente.',
+			);
+		}
 	}, []);
 
 	return (
@@ -54,7 +94,7 @@ const SignIn: React.FC = () => {
 
 						<Form ref={formRef} onSubmit={handleSignUp}>
 							<Input
-								name="user"
+								name="name"
 								icon="user"
 								placeholder="Nome"
 								autoCapitalize="words"
@@ -73,11 +113,11 @@ const SignIn: React.FC = () => {
 								keyboardType="email-address"
 								returnKeyType="next"
 								onSubmitEditing={() => {
-									passwordInputRef.current?.focus();
+									passInputRef.current?.focus();
 								}}
 							/>
 							<Input
-								ref={passwordInputRef}
+								ref={passInputRef}
 								name="password"
 								icon="lock"
 								placeholder="Senha"
